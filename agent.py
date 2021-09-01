@@ -72,13 +72,13 @@ class KnowledgeAwareAgent:
         self.stats = {"episode": defaultdict(list), "game": defaultdict(list)}
         self.mode = "test"
 
-    def start_episode(self, batch_size):
+    def start_episode(self, batch_size): #batch_size is a command line argument.
         # Called at the beginning of each episode
         self._episode_has_started = True
         if self.mode == 'train':
-            self.no_train_episodes += 1
+            self.no_train_episodes += 1 # Count of episodes
             self.transitions = [[] for _ in range(batch_size)]
-            self.stats["game"] = defaultdict(list)
+            self.stats["game"] = defaultdict(list) # defaultdict dont throw KeyError. 
         self.reset_parameters(batch_size)
 
     def end_episode(self):
@@ -106,8 +106,8 @@ class KnowledgeAwareAgent:
         self.model.eval()
         self.model.reset_hidden(batch_size)
 
-    def reset_parameters(self, batch_size):
-        # Called at the beginning of each batch
+    def reset_parameters(self, batch_size): # Called at start_episode to reset parameters.
+        # Called at the beginning of each batch.
         self.agent_loc = ['' for _ in range(batch_size)]
         self.last_done = [False] * batch_size
         if self.mode == 'train':
