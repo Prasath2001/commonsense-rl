@@ -48,11 +48,11 @@ def play(agent, opt, random_action=False):  #opt - command line argument parser
             goal_graphs[game_id] = goal_graph # Each game_id has a goal graph
 
     # Collect some statistics: nb_steps, final reward.
-    total_games_count = len(game_file_names)
-    game_identifiers, avg_moves, avg_scores, avg_norm_scores, max_poss_scores = [], [], [], [], []
+    total_games_count = len(game_file_names) # Total number of games
+    game_identifiers, avg_moves, avg_scores, avg_norm_scores, max_poss_scores = [], [], [], [], [] # Collect these stats
 
-    for no_episode in (range(opt.nepisodes)):
-        if not random_action:
+    for no_episode in (range(opt.nepisodes)): #nepisodes = number of episodes is a command line argument
+        if not random_action: # random action is a choice.
             random.seed(no_episode)
             np.random.seed(no_episode)
             torch.manual_seed(no_episode)
@@ -60,7 +60,8 @@ def play(agent, opt, random_action=False):  #opt - command line argument parser
                 torch.cuda.manual_seed(no_episode)
             env.seed(no_episode)
 
-        agent.start_episode(opt.batch_size)
+        agent.start_episode(opt.batch_size) # batch size is a command line argument - denotes number of games per batch (default batch_size=1)
+        # start episode is found in agent.py - this function sets the mode, no_of_episodes, transitions, stats for every episode.
         avg_eps_moves, avg_eps_scores, avg_eps_norm_scores = [], [], []
         num_games = total_games_count
         game_max_scores = []
