@@ -353,7 +353,7 @@ def shortest_path_seed_expansion(graph, seed, cutoff=None, undirected=True, keep
     return graph.subgraph(nodes)
 
 
-def load_manual_graphs(path):
+def load_manual_graphs(path):  # This function loads conceptnet manual subgraph for each game and returns it as dictionary.
     path = Path(path)
     manual_world_graphs = {}
     if not path.exists():
