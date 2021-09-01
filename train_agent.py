@@ -26,10 +26,12 @@ def play(agent, opt, random_action=False):  #opt - command line argument parser
     if opt.graph_emb_type and 'world' in opt.graph_type:  # graph_emb_type = (numberbatch,complex) , graph_type = (world,local)
         print("Loading Knowledge Graph ... ", end='')
         agent.kg_graph, _, _= construct_kg(game_path + '/conceptnet_subgraph.txt')  # construct_kg returns the undirected graph(from conceptnet_subgraph.txt),triplets,entities 
+        # construct_kg found in utils/kg.py
         print(' DONE')
         # optional: Use complete or brief manually extracted conceptnet subgraph for the agent
         print("Loading Manual World Graphs ... ", end='')
         manual_world_graphs = load_manual_graphs(game_path + '/manual_subgraph_brief')  # Returning the graph file as a dictionary with graph, triplets and entities.
+        # load_manual_graphs found in utils/kg.py
 
     if opt.game_name: # command line argument for game name - files with extension .ulx
         game_path = game_path + "/"+ opt.game_name
@@ -40,6 +42,7 @@ def play(agent, opt, random_action=False):  #opt - command line argument parser
     goal_graphs = {}  # This dictionary contains goal graph for each game.
     for game_file in env.gamefiles:
         goal_graph = get_goal_graph(game_file)  # Goal graphs contains objects,locations to cleanup. Example - apple,fridge to cleanup (goal) for each game.
+        # Function found in utils/textworld_utils.py
         if goal_graph:
             game_id = game_file.split('-')[-1].split('.')[0]
             goal_graphs[game_id] = goal_graph # Each game_id has a goal graph
