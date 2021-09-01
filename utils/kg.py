@@ -56,7 +56,7 @@ def shortest_path_subgraph(kg_graph, prev_graph, nodes, inventory_entities=None,
     return world_graph
 
 
-def construct_graph(triplets):
+def construct_graph(triplets): # Gets triplets like (e1,r,e2) and returns a directed graph and entities=concepts in subgraph.
     graph = nx.DiGraph()
     entities = {}
     for [e1, e2, r] in triplets:
@@ -135,6 +135,7 @@ def draw_graph_colormap(graph,node_weights, showbar=False, cmap='YlGnBu'):
 
 
 def construct_kg(filename: str, print_every=1e6, cache_load=True, logger=logging.getLogger(__name__)) -> (nx.DiGraph, list, set):
+    ### This functions takes conceptnet_subgraph.txt as input and returns a undirected graph, triplets, entities to play function in train_agent.py
     # access edges with graph.edges.data('relation')
     if 'graph' in kg and cache_load:
         return kg['graph'], kg['triplets'], kg['entities']
