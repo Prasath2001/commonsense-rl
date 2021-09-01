@@ -29,13 +29,13 @@ def play(agent, opt, random_action=False):  #opt - command line argument parser
         print(' DONE')
         # optional: Use complete or brief manually extracted conceptnet subgraph for the agent
         print("Loading Manual World Graphs ... ", end='')
-        manual_world_graphs = load_manual_graphs(game_path + '/manual_subgraph_brief')
+        manual_world_graphs = load_manual_graphs(game_path + '/manual_subgraph_brief')  # Returning the graph file as a dictionary with graph,triplets and entities.
 
-    if opt.game_name:
+    if opt.game_name: # command line argument for game name - files with extension .ulx
         game_path = game_path + "/"+ opt.game_name
 
     env, game_file_names = dataset.get_game_env(game_path, infos_to_request, opt.max_step_per_episode, opt.batch_size,
-                                                opt.mode, opt.verbose)
+                                                opt.mode, opt.verbose)  # Returns the Environment and game file names.
     # Get Goals as graphs
     goal_graphs = {}
     for game_file in env.gamefiles:
