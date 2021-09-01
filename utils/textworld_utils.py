@@ -256,7 +256,7 @@ def process_full_facts(info_game, facts):
     return set(state.facts) | inventory_facts #| recipe_facts
 
 
-def get_goal_graph(path):
+def get_goal_graph(path): # This function returns a goal graph containing edges between (objects,locations) to cleanup. Example : edge between apple,fridge to cleanup.
     """
     :param path: path to any of the game files or file name without extension
     :returns: a nx.DiGraph that links every object in the game to its target locations
@@ -266,17 +266,17 @@ def get_goal_graph(path):
     if not path.exists():
         return None
     path = path.with_suffix('.json')
-    game = Game.load(path)
+    game = Game.load(path)   # Game is imported from textworld library
     if 'goal_locations' not in game.metadata:
         return None
-    goal_locations = game.metadata['goal_locations']
+    goal_locations = game.metadata['goal_locations'] #game.metadata returns a dictionary.
     for obj, locations in goal_locations.items():
         for loc in locations:
             graph.add_edge(obj, loc)
     return graph
 
 
-def extract_entities(games):
+def extract_entities(games): # This function extracts entities from games and returns it as a set of entities.
     result = set()
     for g in games:
         for entity in g.infos.values():
@@ -285,7 +285,7 @@ def extract_entities(games):
     return result
 
 
-def load_games(path):
+def load_games(path):   # This function loads the gamefile.
     path = Path(path)
     files = path.rglob("*.json")
     return [Game.load(str(f)) for f in files]
