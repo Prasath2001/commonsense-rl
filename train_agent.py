@@ -52,7 +52,7 @@ def play(agent, opt, random_action=False):  #opt - command line argument parser
     game_identifiers, avg_moves, avg_scores, avg_norm_scores, max_poss_scores = [], [], [], [], [] # Collect these stats
 
     for no_episode in (range(opt.nepisodes)): #nepisodes = number of episodes is a command line argument
-        if not random_action: # random action is a choice.
+        if not random_action: # random action is a choice, function parameter in play function. Default set to False.
             random.seed(no_episode)
             np.random.seed(no_episode)
             torch.manual_seed(no_episode)
@@ -61,35 +61,35 @@ def play(agent, opt, random_action=False):  #opt - command line argument parser
             env.seed(no_episode)
 
         agent.start_episode(opt.batch_size) # batch size is a command line argument - denotes number of games per batch (default batch_size=1)
-        # start episode is found in agent.py - this function sets the mode, no_of_episodes, transitions, stats for every episode.
+        # start episode is found in agent.py - this function resets the parameters - mode, no_of_episodes, transitions, stats for every episode.
         avg_eps_moves, avg_eps_scores, avg_eps_norm_scores = [], [], []
         num_games = total_games_count
         game_max_scores = []
-        game_names = []
+        game_names = [] # This contains game id from game.metadata
         while num_games > 0:
             obs, infos = env.reset()  # Start new episode.
-            if filter_examine_cmd:
+            if filter_examine_cmd: # This helps to remove examine and look command from admissible commands.
                 for commands_ in infos["admissible_commands"]: # [open refri, take apple from refrigeration]
                     for cmd_ in [cmd for cmd in commands_ if cmd.split()[0] in ["examine", "look"]]:
-                        commands_.remove(cmd_)
+                        commands_.remove(cmd_) # Removing examine and look command from admissible commands.
 
-            batch_size = len(obs)
-            num_games -= len(obs)
-            game_goal_graphs = [None] * batch_size
-            max_scores = []
-            game_ids = []
-            game_manual_world_graph = [None] * batch_size
+            batch_size = len(obs)  # obs = [ 'apple in found on the table....','dirty shoes is on the floor...',...], obs[0] is observation of 1st game.
+            num_games -= len(obs)  # updating number of games left.
+            game_goal_graphs = [None] * batch_size # Game goal graphs for each game of the batch is initialized as None.
+            max_scores = [] # Max scores possible for each game in the batch is taken from the game file - infos['game'] - game.max_score is used below.
+            game_ids = [] # ID for each game in the batch  is taken from game.metadata 
+            game_manual_world_graph = [None] * batch_size # Manual world graph for each game of the batch is initialized as None.
             for b, game in enumerate(infos["game"]):
-                max_scores.append(game.max_score)
+                max_scores.append(game.max_score) # Max scores appended from game file.
                 if "uuid" in game.metadata:
-                    game_id = game.metadata["uuid"].split("-")[-1]
-                    game_ids.append(game_id)
-                    game_names.append(game_id)
-                    game_max_scores.append(game.max_score)
+                    game_id = game.metadata["uuid"].split("-")[-1] # Game id is taken from game file.
+                    game_ids.append(game_id) # Collection of games id from the batch.
+                    game_names.append(game_id)  # Collection of games id from the batch is appended to game_names.
+                    game_max_scores.append(game.max_score) # Appending maximum possible score for each game of the batch.
                     if len(goal_graphs):
-                        game_goal_graphs[b] = goal_graphs[game_id]
+                        game_goal_graphs[b] = goal_graphs[game_id] # goal graphs is a dictionary with key - game id, value - goal graph
                     if len(manual_world_graphs):
-                        game_manual_world_graph[b] = manual_world_graphs[game_id]
+                        game_manual_world_graph[b] = manual_world_graphs[game_id] # manual world graph is a dictionary with key - game id, value - manual world graph
 
             if not game_ids:
                 game_ids = range(num_games,num_games+batch_size)
