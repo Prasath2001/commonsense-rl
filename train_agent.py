@@ -16,16 +16,16 @@ from games import dataset
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def play(agent, opt, random_action=False):
+def play(agent, opt, random_action=False):  #opt - command line argument parser
     filter_examine_cmd = False
     infos_to_request = agent.infos_to_request
     infos_to_request.max_score = True  # Needed to normalize the scores.
     game_path = opt.game_dir + "/" + (
-        str(opt.difficulty_level) + "/" + opt.mode  if opt.difficulty_level != '' else opt.game_dir + "/" + opt.mode )
-    manual_world_graphs = {}  # What is this variable ?
-    if opt.graph_emb_type and 'world' in opt.graph_type:
+        str(opt.difficulty_level) + "/" + opt.mode  if opt.difficulty_level != '' else opt.game_dir + "/" + opt.mode ) # opt.mode = train,test,valid mode.
+    manual_world_graphs = {}  # Contains subgraph related to the game.
+    if opt.graph_emb_type and 'world' in opt.graph_type:  # graph_emb_type = (numberbatch,complex) , graph_type = (world,local)
         print("Loading Knowledge Graph ... ", end='')
-        agent.kg_graph, _, _= construct_kg(game_path + '/conceptnet_subgraph.txt')
+        agent.kg_graph, _, _= construct_kg(game_path + '/conceptnet_subgraph.txt')  # construct_kg returns the undirected graph(from conceptnet_subgraph.txt),triplets,entities 
         print(' DONE')
         # optional: Use complete or brief manually extracted conceptnet subgraph for the agent
         print("Loading Manual World Graphs ... ", end='')
