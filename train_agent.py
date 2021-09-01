@@ -22,7 +22,7 @@ def play(agent, opt, random_action=False):
     infos_to_request.max_score = True  # Needed to normalize the scores.
     game_path = opt.game_dir + "/" + (
         str(opt.difficulty_level) + "/" + opt.mode  if opt.difficulty_level != '' else opt.game_dir + "/" + opt.mode )
-    manual_world_graphs = {}
+    manual_world_graphs = {}  # What is this variable ?
     if opt.graph_emb_type and 'world' in opt.graph_type:
         print("Loading Knowledge Graph ... ", end='')
         agent.kg_graph, _, _= construct_kg(game_path + '/conceptnet_subgraph.txt')
