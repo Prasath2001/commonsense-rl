@@ -29,7 +29,7 @@ def play(agent, opt, random_action=False):  #opt - command line argument parser
         print(' DONE')
         # optional: Use complete or brief manually extracted conceptnet subgraph for the agent
         print("Loading Manual World Graphs ... ", end='')
-        manual_world_graphs = load_manual_graphs(game_path + '/manual_subgraph_brief')  # Returning the graph file as a dictionary with graph,triplets and entities.
+        manual_world_graphs = load_manual_graphs(game_path + '/manual_subgraph_brief')  # Returning the graph file as a dictionary with graph, triplets and entities.
 
     if opt.game_name: # command line argument for game name - files with extension .ulx
         game_path = game_path + "/"+ opt.game_name
@@ -37,12 +37,12 @@ def play(agent, opt, random_action=False):  #opt - command line argument parser
     env, game_file_names = dataset.get_game_env(game_path, infos_to_request, opt.max_step_per_episode, opt.batch_size,
                                                 opt.mode, opt.verbose)  # Returns the Environment and game file names.
     # Get Goals as graphs
-    goal_graphs = {}
+    goal_graphs = {}  # This dictionary contains goal graph for each game.
     for game_file in env.gamefiles:
-        goal_graph = get_goal_graph(game_file)
+        goal_graph = get_goal_graph(game_file)  # Goal graphs contains objects,locations to cleanup. Example - apple,fridge to cleanup (goal) for each game.
         if goal_graph:
             game_id = game_file.split('-')[-1].split('.')[0]
-            goal_graphs[game_id] = goal_graph
+            goal_graphs[game_id] = goal_graph # Each game_id has a goal graph
 
     # Collect some statistics: nb_steps, final reward.
     total_games_count = len(game_file_names)
