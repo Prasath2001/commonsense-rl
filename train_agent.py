@@ -87,29 +87,29 @@ def play(agent, opt, random_action=False):  #opt - command line argument parser
                     game_names.append(game_id)  # Collection of games id from the batch is appended to game_names.
                     game_max_scores.append(game.max_score) # Appending maximum possible score for each game of the batch.
                     if len(goal_graphs):
-                        game_goal_graphs[b] = goal_graphs[game_id] # goal graphs is a dictionary with key - game id, value - goal graph
+                        game_goal_graphs[b] = goal_graphs[game_id] # goal graphs is a dictionary with key - game id, value - goal graph.
                     if len(manual_world_graphs):
-                        game_manual_world_graph[b] = manual_world_graphs[game_id] # manual world graph is a dictionary with key - game id, value - manual world graph
+                        game_manual_world_graph[b] = manual_world_graphs[game_id] # manual world graph is a dictionary with key - game id, value - manual world graph.
 
             if not game_ids:
                 game_ids = range(num_games,num_games+batch_size)
                 game_names.extend(game_ids)
 
             commands = ["restart"]*len(obs)
-            scored_commands = [[] for b in range(batch_size)]
-            last_scores = [0.0]*len(obs)
+            scored_commands = [[] for b in range(batch_size)] # scored_commands = [ [1,0,2,..],[1,1,0..],...,[1,1,1..] ] - scored_commands[0] contains scores for 1st game of the batch.
+            last_scores = [0.0]*len(obs) # last_scores contains last score for each game of the batch.
             scores = [0.0]*len(obs)
             dones = [False]*len(obs)
             nb_moves = [0]*len(obs)
-            infos["goal_graph"] = game_goal_graphs
-            infos["manual_world_graph"] = game_manual_world_graph
+            infos["goal_graph"] = game_goal_graphs # dictionary is set to infos['goal graph'] - (game_id,goal graph) - (key,value) pair. 
+            infos["manual_world_graph"] = game_manual_world_graph # dictionary is set to infos['manual world graph'] - (game_id,manual world graph) - (key,value) pair.
             agent.reset_parameters(opt.batch_size)
-            for step_no in range(opt.max_step_per_episode):
-                nb_moves = [step + int(not done) for step, done in zip(nb_moves, dones)]
+            for step_no in range(opt.max_step_per_episode): # maximum steps per episode is a command line argument with default value = 50.
+                nb_moves = [step + int(not done) for step, done in zip(nb_moves, dones)] # calculate number of moves till done = True.
 
-                if agent.graph_emb_type and ('local' in agent.graph_type or 'world' in agent.graph_type):
+                if agent.graph_emb_type and ('local' in agent.graph_type or 'world' in agent.graph_type): #graph_emb_type = 'numberbatch' or 'complex'.
                     # prune_nodes = opt.prune_nodes if no_episode >= opt.prune_episode and no_episode % 25 ==0 and step_no % 10 == 0 else False
-                    prune_nodes = opt.prune_nodes
+                    prune_nodes = opt.prune_nodes # Prune low probability nodes in world graph. prune_nodes = 'true' or 'false'.
                     agent.update_current_graph(obs, commands, scored_commands, infos, opt.graph_mode, prune_nodes)
 
                 commands = agent.act(obs, scores, dones, infos, scored_commands, random_action)
