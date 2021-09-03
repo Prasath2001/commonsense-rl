@@ -110,22 +110,22 @@ def play(agent, opt, random_action=False):  #opt - command line argument parser
                 if agent.graph_emb_type and ('local' in agent.graph_type or 'world' in agent.graph_type): #graph_emb_type = 'numberbatch' or 'complex'.
                     # prune_nodes = opt.prune_nodes if no_episode >= opt.prune_episode and no_episode % 25 ==0 and step_no % 10 == 0 else False
                     prune_nodes = opt.prune_nodes # Prune low probability nodes in world graph. prune_nodes = 'true' or 'false'.
-                    agent.update_current_graph(obs, commands, scored_commands, infos, opt.graph_mode, prune_nodes)
+                    agent.update_current_graph(obs, commands, scored_commands, infos, opt.graph_mode, prune_nodes) # This updates the current local/world graph with current facts.
 
-                commands = agent.act(obs, scores, dones, infos, scored_commands, random_action)
-                obs, scores, dones, infos = env.step(commands)
-                infos["goal_graph"] = game_goal_graphs
-                infos["manual_world_graph"] = game_manual_world_graph
+                commands = agent.act(obs, scores, dones, infos, scored_commands, random_action)  # Action function returns a command/action to perform.
+                obs, scores, dones, infos = env.step(commands) # Action is performed.
+                infos["goal_graph"] = game_goal_graphs # updating the goal graph after action is taken place.
+                infos["manual_world_graph"] = game_manual_world_graph # updating the manual world graph after action is taken place.
 
-                for b in range(batch_size):
-                    if scores[b] - last_scores[b] > 0:
-                        last_scores[b] = scores[b]
-                        scored_commands[b].append(commands[b])
+                for b in range(batch_size):  # For each game of the batch
+                    if scores[b] - last_scores[b] > 0: # Checking for improvement in score, if yes scores are updated with last scores.
+                        last_scores[b] = scores[b]  # Scores are updated after rewards.
+                        scored_commands[b].append(commands[b]) # scored_commands[0] = [put apple in fridge, put dirty shirt in washing machine,...]
 
-                if all(dones):
+                if all(dones): # If all games are done, break
                     break
-                if step_no == opt.max_step_per_episode - 1:
-                    dones = [True for _ in dones]
+                if step_no == opt.max_step_per_episode - 1: # No. of maximum steps allowed in a episode.
+                    dones = [True for _ in dones]  # Making all the dones = True.
             agent.act(obs, scores, dones, infos, scored_commands, random_action)  # Let the agent know the game is done.
 
             if opt.verbose:
@@ -135,7 +135,7 @@ def play(agent, opt, random_action=False):  #opt - command line argument parser
             avg_eps_norm_scores.extend([score/max_score for score, max_score in zip(scores, max_scores)])
         if opt.verbose:
             print("*", end="")
-        agent.end_episode()
+        agent.end_episode() 
         game_identifiers.append(game_names)
         avg_moves.append(avg_eps_moves) # episode x # games
         avg_scores.append(avg_eps_scores)
