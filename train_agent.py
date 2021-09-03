@@ -95,7 +95,7 @@ def play(agent, opt, random_action=False):  #opt - command line argument parser
                 game_ids = range(num_games,num_games+batch_size)
                 game_names.extend(game_ids)
 
-            commands = ["restart"]*len(obs)
+            commands = ["restart"]*len(obs) # All commands are first initialized to 'restart'. If command = restart, then previous action is None.
             scored_commands = [[] for b in range(batch_size)] # scored_commands = [ [1,0,2,..],[1,1,0..],...,[1,1,1..] ] - scored_commands[0] contains scores for 1st game of the batch.
             last_scores = [0.0]*len(obs) # last_scores contains last score for each game of the batch.
             scores = [0.0]*len(obs)
@@ -125,29 +125,29 @@ def play(agent, opt, random_action=False):  #opt - command line argument parser
                 if all(dones): # If all games are done, break
                     break
                 if step_no == opt.max_step_per_episode - 1: # No. of maximum steps allowed in a episode.
-                    dones = [True for _ in dones]  # Making all the dones = True.
+                    dones = [True for _ in dones]  # Making all the dones = True after reaching the maximum episodes limit.
             agent.act(obs, scores, dones, infos, scored_commands, random_action)  # Let the agent know the game is done.
 
             if opt.verbose:
                 print(".", end="")
-            avg_eps_moves.extend(nb_moves)
-            avg_eps_scores.extend(scores)
-            avg_eps_norm_scores.extend([score/max_score for score, max_score in zip(scores, max_scores)])
+            avg_eps_moves.extend(nb_moves) # appending number of moves.
+            avg_eps_scores.extend(scores) # appending scores.
+            avg_eps_norm_scores.extend([score/max_score for score, max_score in zip(scores, max_scores)]) # appending normalized scores.
         if opt.verbose:
             print("*", end="")
-        agent.end_episode() 
+        agent.end_episode()  # End of episode resets parameters like episode_has_started = False etc... - found in agent.py
         game_identifiers.append(game_names)
-        avg_moves.append(avg_eps_moves) # episode x # games
-        avg_scores.append(avg_eps_scores)
-        avg_norm_scores.append(avg_eps_norm_scores)
-        max_poss_scores.append(game_max_scores)
-    env.close()
-    game_identifiers = np.array(game_identifiers)
+        avg_moves.append(avg_eps_moves) # episode x # games  Aggregating avg. moves across episodes.
+        avg_scores.append(avg_eps_scores) # Aggregating avg. scores across episodes.
+        avg_norm_scores.append(avg_eps_norm_scores) # Aggregating avg. normalized scores across episodes.
+        max_poss_scores.append(game_max_scores) # Aggregating maximum possible scores across episodes.
+    env.close() # Closing the environment.
+    game_identifiers = np.array(game_identifiers) # Converting list to numpy array.
     avg_moves = np.array(avg_moves)
     avg_scores = np.array(avg_scores)
     avg_norm_scores = np.array(avg_norm_scores)
     max_poss_scores = np.array(max_poss_scores)
-    if opt.verbose:
+    if opt.verbose: # Printing statistics for each iteration with a for loop inside.
         idx = np.apply_along_axis(np.argsort, axis=1, arr=game_identifiers)
         game_avg_moves = np.mean(np.array(list(map(lambda x, y: y[x], idx, avg_moves))), axis=0)
         game_norm_scores = np.mean(np.array(list(map(lambda x, y: y[x], idx, avg_norm_scores))), axis=0)
@@ -175,7 +175,7 @@ def play(agent, opt, random_action=False):  #opt - command line argument parser
 
         results_ofile = getUniqueFileHandler(opt.results_filename + '_' +opt.mode+'_results')
         pickle.dump(str_result, results_ofile)
-    return avg_scores, avg_norm_scores, avg_moves
+    return avg_scores, avg_norm_scores, avg_moves  # play function returns avg. scores, avg. normalized scores, avg. moves
 
 
 if __name__ == '__main__':
@@ -239,7 +239,7 @@ if __name__ == '__main__':
     parser.add_argument('--graph_emb_type', help='Knowledge Graph Embedding type for actions: (numberbatch, complex)')
     parser.add_argument('--egreedy_epsilon', type=float, default=0.0, help="Epsilon for the e-greedy exploration")
 
-    opt = parser.parse_args()
+    opt = parser.parse_args() # Command line argument parser.
     print(opt)
     random.seed(opt.initial_seed)
     np.random.seed(opt.initial_seed)
