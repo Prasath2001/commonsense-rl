@@ -290,9 +290,9 @@ if __name__ == '__main__':
 
         tokenizer = Tokenizer(noun_only_tokens=opt.noun_only_tokens, use_stopword=opt.use_stopword, ngram=opt.ngram,
                               extractor=tk_extractor)
-        rel_extractor = RelationExtractor(tokenizer, openie_url=opt.corenlp_url)
+        rel_extractor = RelationExtractor(tokenizer, openie_url=opt.corenlp_url) # tokenizer and rel_extractor are objects passed to agent.
         myagent = agent.KnowledgeAwareAgent(graph, opt, tokenizer,rel_extractor, device)
-        myagent.type = opt.agent_type
+        myagent.type = opt.agent_type # Agent type is random, simple (Only Text), knowledge-aware (Text + Commonsense).
 
         print("Training ...")
         myagent.train(opt.batch_size)  # Tell the agent it should update its parameters.
