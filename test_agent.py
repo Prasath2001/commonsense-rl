@@ -15,7 +15,7 @@ from games import dataset
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
+# Same file as train_agent.py, only difference is results not stored in a directory.
 def play(agent, opt, random_action=False):
     filter_examine_cmd = False
     infos_to_request = agent.infos_to_request
