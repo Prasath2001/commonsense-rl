@@ -22,16 +22,16 @@ class Tokenizer:
         self.ignore_list = ['textworld', 'house', 'thing', 'stuff','place', 'yourself', 'kind', 'waste','letdown','us','uk','way','day','many','some', 'location', '-=']
         self.ignore_tags = ['DET', 'PRON', 'PUNCT']
 
-    def _get_word_id(self, word, map2id, unk=True):
-        if unk and word not in map2id:
+    def _get_word_id(self, word, map2id, unk=True): # Returns index/id of a word from the dictionary
+        if unk and word not in map2id: # If word not found in dictionary, it returns -1.
             return -1
         return map2id[word]
 
-    def clean_string(self, text, preprocess=False):
+    def clean_string(self, text, preprocess=False): # Cleans the string and returns the cleaned up string. 
         if preprocess:
             text = self._preprocess(text)
         text = text.lower()
-        text = unidecode(text)
+        text = unidecode(text) # unidecode('ko\u017eu\u0161\u010dek') prints: 'kozuscek' - Converts to ASCII values.
         text = re.sub("[^A-Za-z0-9.]+", " ", text)
         return text.strip()
 
