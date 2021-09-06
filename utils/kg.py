@@ -78,7 +78,7 @@ def construct_graph(triplets): # Gets triplets like (e1,r,e2) and returns a dire
     return graph, entities
 
 
-def add_triplets_to_graph(graph, triplets):
+def add_triplets_to_graph(graph, triplets): # Adding edges between entities with relationship type and returning graph and entities.
     entities = dict(graph.nodes.data())
     for [e1, e2, r] in triplets:
         e1 = e1.lower().strip()
@@ -99,7 +99,7 @@ def add_triplets_to_graph(graph, triplets):
     return graph, entities
 
 
-def draw_graph(graph, title="cleanup", show_relation=True, weights=None, pos=None):
+def draw_graph(graph, title="cleanup", show_relation=True, weights=None, pos=None): # Plots the graph passed with relations.
     if not pos:
         pos = nx.spring_layout(graph, k=0.95)
     if weights:
@@ -171,11 +171,11 @@ class RelationExtractor:
         self.kg_vocab = {}
         self.agent_loc = ''
 
-    def call_stanford_openie(self,sentence):
+    def call_stanford_openie(self,sentence): # Accessing data using API from Standford Core NLPOpen IE Server.
         querystring = {
             "properties": "%7B%22annotators%22%3A%20%22openie%22%7D",
             "pipelineLanguage": "en"}
-        response = requests.request("POST", self.openie_url, data=sentence, params=querystring)
+        response = requests.request("POST", self.openie_url, data=sentence, params=querystring) # API request for Standford Core NLPOpen IE Server.
         response = json.JSONDecoder().decode(response.text)
         return response
 
@@ -300,13 +300,13 @@ class RelationExtractor:
         return current_graph, add_rules
 
 
-def khop_neighbor_graph(graph, entities, cutoff=1, max_khop_degree=None):
+def khop_neighbor_graph(graph, entities, cutoff=1, max_khop_degree=None): # Returns a graph with all k-hop neighborhood nodes of the given entities.
     all_entities = []
     for et in entities:
-        candidates = nx.single_source_shortest_path(graph, et, cutoff=cutoff).keys()
-        if not max_khop_degree or len(candidates)<=max_khop_degree:
+        candidates = nx.single_source_shortest_path(graph, et, cutoff=cutoff).keys() # Finds shortest path candidates between entities with cutoff.
+        if not max_khop_degree or len(candidates)<=max_khop_degree: # Filters eligible candidates from set of candidates available within k-hops .
             all_entities.extend(list(candidates))
-    return graph.subgraph(set(entities)|set(all_entities))
+    return graph.subgraph(set(entities)|set(all_entities)) # Returning the graph
 
 
 def ego_graph_seed_expansion(graph, seed, radius, undirected=True, max_degree=None):
