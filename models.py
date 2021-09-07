@@ -18,20 +18,20 @@ class PretrainedEmbeddings(torch.nn.Module):
     def __init__(self,keyed_vectors, trainable = False):
         super().__init__()
         self.embedding = emb_layer(keyed_vectors, trainable) # Embedding layer is initialized.
-        oov_vector = torch.tensor(keyed_vectors['<UNK>'].copy(), dtype=torch.float32)
-        self.dim = oov_vector.shape[0]
+        oov_vector = torch.tensor(keyed_vectors['<UNK>'].copy(), dtype=torch.float32) # Out Of Vocabulary vector contains vectors of unknown words.
+        self.dim = oov_vector.shape[0] # Dimension of the vector.
         # vector for oov
-        self.oov = torch.nn.Parameter(data=oov_vector)
-        self.oov_index = -1
+        self.oov = torch.nn.Parameter(data=oov_vector) # oov contains parameters.
+        self.oov_index = -1 # Index of oov words are set to -1.
 
-    def forward(self, arr):
-        N = arr.shape[0]
-        items = arr.shape[1]
-        mask = (arr == self.oov_index).long()
-        mask_ = mask.unsqueeze(-1).float()
-        embed = self.embedding((1-mask)*arr)
+    def forward(self, arr): # This function mask all Out of Vocabulary vectors and returns the masked embedding layer.
+        N = arr.shape[0] # Index
+        items = arr.shape[1] # Words
+        mask = (arr == self.oov_index).long() # Mask contains an array of 0 or 1.
+        mask_ = mask.unsqueeze(-1).float() # mask_ shape = [mask.shape,1]
+        embed = self.embedding((1-mask)*arr) # Masked array is sent to embedding layer.
         embed = (1-mask_)*embed + mask_*(self.oov.expand_as(embed))
-        return embed
+        return embed # Returns a masked embedding layer.
 
 
 class GraphAttentionLayer(nn.Module):
