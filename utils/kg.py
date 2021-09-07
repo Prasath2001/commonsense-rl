@@ -171,67 +171,68 @@ class RelationExtractor:
         self.kg_vocab = {}
         self.agent_loc = ''
 
-    def call_stanford_openie(self,sentence): # Accessing data using API from Standford Core NLPOpen IE Server.
+    def call_stanford_openie(self,sentence): # Used to retrieve Open Information Extraction as triplets. Example : born-in (Barack Obama, Hawaii) 
+        """ To know about OpenIE visit https://nlp.stanford.edu/software/openie.html """
         querystring = {
             "properties": "%7B%22annotators%22%3A%20%22openie%22%7D",
             "pipelineLanguage": "en"}
-        response = requests.request("POST", self.openie_url, data=sentence, params=querystring) # API request for Standford Core NLPOpen IE Server.
+        response = requests.request("POST", self.openie_url, data=sentence, params=querystring) # Accessing data using API request for Standford Core NLPOpen IE Server.
         response = json.JSONDecoder().decode(response.text)
         return response
 
-    def fetch_triplets(self,text, current_graph, prev_action=None):
+    def fetch_triplets(self,text, current_graph, prev_action=None): # This function gets observation, inventory, description , hints as a combined string = text and returns triplets.
         triplets = []
         remove = []
         prev_remove = []
         link = []
-        c_id = len(self.kg_vocab.keys())
-        obs = self.tokenizer.clean_string(text, preprocess=True)
-        dirs = ['north', 'south', 'east', 'west']
-        obs = str(obs)
-        doc = self.tokenizer.nlp_eval(obs)
-        sents = {}
+        c_id = len(self.kg_vocab.keys()) # Number of keys in vocabulary of knowledge graph.
+        obs = self.tokenizer.clean_string(text, preprocess=True) # Preprocess and Cleans the string.
+        dirs = ['north', 'south', 'east', 'west'] # Directions
+        obs = str(obs) # Observation as string
+        doc = self.tokenizer.nlp_eval(obs) # Obs is passed to Spacy NLP object , returns doc.
+        sents = {} # Stores result of OpenIE
         try:
-            sents = self.call_stanford_openie(doc.text)['sentences']
+            sents = self.call_stanford_openie(doc.text)['sentences'] # doc.text contains obs as string.
         except:
             print("Error in connecting to Stanford CoreNLP OpenIE Server")
         for ov in sents:
-            tokens = ov["tokens"]
-            triple = ov['openie']
+            tokens = ov["tokens"] # Contains tokens of a sentence.
+            triple = ov['openie'] # Contains triplet of a sentence.
             for tr in triple:
-                h, r, t = tr['subject'].lower(), tr['relation'].lower(), tr['object'].lower()
+                h, r, t = tr['subject'].lower(), tr['relation'].lower(), tr['object'].lower() # triplet is changed to lower case.
                 if h == 'we':
                     h = 'you'
                     if r == 'are in':
                         r = "'ve entered"
 
-                if h == 'it':
+                if h == 'it': # Don't consider relationship between objects. Consider only between subject and object.
                     break
-                triplets.append((h, r, t))
+                triplets.append((h, r, t)) # Store triplets of all sentences.
 
         room = ""
         room_set = False
         for rule in triplets:
             h, r, t = rule
-            if 'entered' in r or 'are in' in r or 'walked' in r:
+            if 'entered' in r or 'are in' in r or 'walked' in r: # Checks for a room in object of triplet.
                 prev_remove.append(r)
                 if not room_set:
                     room = t
-                    room_set = True
+                    room_set = True # A room setting is found from obs.
             if 'should' in r:
                 prev_remove.append(r)
-            if 'see' in r or 'make out' in r:
+            if 'see' in r or 'make out' in r: 
                 link.append((r, t))
                 remove.append(r)
             # else:
             #    link.append((r, t))
 
-        prev_room = self.agent_loc
-        self.agent_loc = room
-        add_rules = []
+        prev_room = self.agent_loc # Previous agent's location is stored in previous room.
+        self.agent_loc = room # Update the current location of agent from room.
+        add_rules = [] # Add rules
         if prev_action is not None:
             for d in dirs:
-                if d in prev_action and room != "":
-                    add_rules.append((prev_room, d + ' of', room))
+                if d in prev_action and room != "": # If there is a action performed with a direction involved and room is not None, then append it to rules.
+                    add_rules.append((prev_room, d + ' of', room)) # Example rule : Kitchen south of Livingroom.
         prev_room_subgraph = None
         prev_you_subgraph = None
 
@@ -239,31 +240,31 @@ class RelationExtractor:
             sent = sent.text
             if sent == ',' or sent == 'hm .':
                 continue
-            if 'exit' in sent or 'entranceway' in sent:
+            if 'exit' in sent or 'entranceway' in sent: # If there is exit or entrance to a room
                 for d in dirs:
                     if d in sent:
-                        triplets.append((room, 'has', 'exit to ' + d))
+                        triplets.append((room, 'has', 'exit to ' + d)) # Storing it in triplet.
         if prev_room != "":
-            graph_copy = current_graph.copy()
-            graph_copy.remove_edge('you', prev_room)
-            con_cs = [graph_copy.subgraph(c) for c in nx.weakly_connected_components(graph_copy)]
+            graph_copy = current_graph.copy() # current graph is from infos['local/world graph']
+            graph_copy.remove_edge('you', prev_room) # Removing the Current location of agent in the Graph to update.
+            con_cs = [graph_copy.subgraph(c) for c in nx.weakly_connected_components(graph_copy)] # Connected components.
 
-            for con_c in con_cs:
-                if prev_room in con_c.nodes:
-                    prev_room_subgraph = nx.induced_subgraph(graph_copy, con_c.nodes)
-                if 'you' in con_c.nodes:
+            for con_c in con_cs: # Iteration each component of graph
+                if prev_room in con_c.nodes: # Room is one of the nodes
+                    prev_room_subgraph = nx.induced_subgraph(graph_copy, con_c.nodes) # Returns a subgraph of nodes in component from local/world graph.
+                if 'you' in con_c.nodes: # prev_you_subgraph keeps track of agent's information.
                     prev_you_subgraph = nx.induced_subgraph(graph_copy, con_c.nodes)
 
         for l in link:
-            add_rules.append((room, l[0], l[1]))
+            add_rules.append((room, l[0], l[1])) # Rules to link objects in room. Example : Kitchen see stove etc.
 
         for rule in triplets:
             h, r, t = rule
             if r == 'is in':
                 if t == 'room':
                     t = room
-            if r not in remove:
-                add_rules.append((h, r, t))
+            if r not in remove: # If r is not 'see' or 'make out', append to rules.
+                add_rules.append((h, r, t)) 
         edges = list(current_graph.edges)
         for edge in edges:
             r = 'relatedTo'
@@ -272,32 +273,32 @@ class RelationExtractor:
             if r in prev_remove:
                 current_graph.remove_edge(*edge)
 
-        if prev_you_subgraph is not None:
-            current_graph.remove_edges_from(prev_you_subgraph.edges)
+        if prev_you_subgraph is not None: # If agent's graph is none, then remove edges of agent from current graph.
+            current_graph.remove_edges_from(prev_you_subgraph.edges) 
 
         for rule in add_rules:
-            u = '_'.join(str(rule[0]).split())
-            v = '_'.join(str(rule[2]).split())
-            if u != 'it' and u not in self.kg_vocab:
+            u = '_'.join(str(rule[0]).split()) # Gets node u from rule.
+            v = '_'.join(str(rule[2]).split()) # Gets node v from rule.
+            if u != 'it' and u not in self.kg_vocab: # Node is added in vocabulary of KG.
                 self.kg_vocab[u] = c_id
-                c_id += 1
-            if v != 'it' and v not in self.kg_vocab:
+                c_id += 1 # Incrementing length of vocab of KG.
+            if v != 'it' and v not in self.kg_vocab: # Same as node u.
                 self.kg_vocab[v] = c_id
                 c_id += 1
             skip_flag = False
-            for skip_token in self.tokenizer.ignore_list:
+            for skip_token in self.tokenizer.ignore_list: # Skipping tokens in ignore list
                 if skip_token in u or skip_token in v:
                     skip_flag = True
             if u != 'it' and v != 'it' and not skip_flag:
-                r = str(rule[1]).lower()
-                if not rule[1] or rule[1] == '':
+                r = str(rule[1]).lower() # Relation between node u and v is stored in r.
+                if not rule[1] or rule[1] == '': # If there is no relation, then r is set to relatedTo.
                     r = 'relatedTo'
-                current_graph.add_edge(str(rule[0]).lower(), str(rule[2]).lower(), relation=r)
+                current_graph.add_edge(str(rule[0]).lower(), str(rule[2]).lower(), relation=r) # Add edges between node u and v with relation r.
         prev_edges = current_graph.edges
         if prev_room_subgraph is not None:
-            current_graph.add_edges_from(prev_room_subgraph.edges)
-        current_edges = current_graph.edges
-        return current_graph, add_rules
+            current_graph.add_edges_from(prev_room_subgraph.edges) # Add graph from current room.
+        current_edges = current_graph.edges # Edges list is updated.
+        return current_graph, add_rules # Returns current graph and rules.
 
 
 def khop_neighbor_graph(graph, entities, cutoff=1, max_khop_degree=None): # Returns a graph with all k-hop neighborhood nodes of the given entities.
@@ -383,7 +384,7 @@ def kg_match(extractor, target_entities, kg_entities):
     return result
 
 
-def save_graph_tsv(graph, path):
+def save_graph_tsv(graph, path): # Saving graph as TSV file. Each line contains u,relation,v triplet.
     relation_map = nx.get_edge_attributes(graph, 'relation')
     lines = []
     for n1, n2 in graph.edges:
