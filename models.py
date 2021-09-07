@@ -5,11 +5,11 @@ import numpy as np
 from utils.generic import masked_softmax
 
 
-def emb_layer(keyed_vectors, trainable=False):
+def emb_layer(keyed_vectors, trainable=False): # Returns a Embedding layer.
     """Create an Embedding layer from the supplied gensim keyed_vectors."""
-    emb_weights = torch.Tensor(keyed_vectors.vectors)
-    emb = nn.Embedding(*emb_weights.shape)
-    emb.weight = nn.Parameter(emb_weights)
+    emb_weights = torch.Tensor(keyed_vectors.vectors) # Embedding weights are stored as tensors.
+    emb = nn.Embedding(*emb_weights.shape) # A simple lookup table that stores embeddings of a fixed dictionary and size.
+    emb.weight = nn.Parameter(emb_weights) # Weight of embeddings is stored in embedding layer weight.
     emb.weight.requires_grad = trainable
     return emb
 
@@ -17,7 +17,7 @@ def emb_layer(keyed_vectors, trainable=False):
 class PretrainedEmbeddings(torch.nn.Module):
     def __init__(self,keyed_vectors, trainable = False):
         super().__init__()
-        self.embedding = emb_layer(keyed_vectors, trainable)
+        self.embedding = emb_layer(keyed_vectors, trainable) # Embedding layer is initialized.
         oov_vector = torch.tensor(keyed_vectors['<UNK>'].copy(), dtype=torch.float32)
         self.dim = oov_vector.shape[0]
         # vector for oov
