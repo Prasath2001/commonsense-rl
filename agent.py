@@ -39,38 +39,38 @@ class KnowledgeAwareAgent:
         self.rel_extractor = rel_extractor
         self.pruned_concepts = []
 
-        self.emb_loc = opt.emb_loc
-        self.word_emb_type = opt.word_emb_type
-        self.graph_emb_type = opt.graph_emb_type
-        self.word_emb, self.graph_emb = None, None
-        self.word2id, self.node2id = {}, {}
+        self.emb_loc = opt.emb_loc # Path to embeddings location.
+        self.word_emb_type = opt.word_emb_type # Word embedding type. Example : Random, GloVe, Numberbatch, Fastext etc.
+        self.graph_emb_type = opt.graph_emb_type # Graph embedding type : Numberbatch, Complex
+        self.word_emb, self.graph_emb = None, None # Word and Graph embedding set none.
+        self.word2id, self.node2id = {}, {} # Word2id and Node2id are dictionary containing id's of word and node.
 
-        self._episode_has_started = False
+        self._episode_has_started = False 
 
         if self.word_emb_type is not None:
-            self.word_emb = load_embeddings(self.emb_loc, self.word_emb_type)
-            self.word_vocab = self.word_emb.vocab
+            self.word_emb = load_embeddings(self.emb_loc, self.word_emb_type) # Loads Word embeddings like GloVe, Fasttext etc, from generic.py.
+            self.word_vocab = self.word_emb.vocab # Vocabulary of Word embeddings loaded.
             for i, w in enumerate(self.word_vocab):
-                self.word2id[w] = i
+                self.word2id[w] = i # word2id is a dictionary, with key = word and value = index.
         # Graphs
-        self.graph_type = opt.graph_type
-        self.reset_graph()
+        self.graph_type = opt.graph_type # Local/World graph
+        self.reset_graph() # Initializes empty graph.
 
         if self.graph_emb_type is not None and ('local' in self.graph_type or 'world' in self.graph_type):
-            self.graph_emb = load_embeddings(self.emb_loc, self.graph_emb_type)
-            self.kg_graph = graph
-            self.node_vocab = self.graph_emb.vocab
+            self.graph_emb = load_embeddings(self.emb_loc, self.graph_emb_type) # Loads graph embeddings
+            self.kg_graph = graph # KG got as parameter from train_agent.py 
+            self.node_vocab = self.graph_emb.vocab # Vocabulary of graph embeddings loaded.
             for i, w in enumerate(self.node_vocab):
-                self.node2id[w] = i
+                self.node2id[w] = i # node2id is a dictionary, with key = node and value = index.
         self.model = scorer.CommandScorerWithKG(self.word_emb, self.graph_emb, self.graph_type,
-                                                hidden_size=self.hidden_size, device=device)
+                                                hidden_size=self.hidden_size, device=device) # Model is returned from scorer.py. Gets Word emb, Node emb, Graph type, hidden size as input.
         if torch.cuda.is_available():
             self.model.to(device)
         # 0.00003
-        self.optimizer = optim.Adam(self.model.parameters(), 0.00003)
-        self.hist_scmds_size = opt.hist_scmds_size
-        self.stats = {"episode": defaultdict(list), "game": defaultdict(list)}
-        self.mode = "test"
+        self.optimizer = optim.Adam(self.model.parameters(), 0.00003) # Adam Optimizer with learning rate = 0.00003 
+        self.hist_scmds_size = opt.hist_scmds_size # Number of recent scored command history to use. Useful when the game has intermediate reward. Default = 3.
+        self.stats = {"episode": defaultdict(list), "game": defaultdict(list)} # Statistics scored as list for each episode of each game is initialized as empty list.
+        self.mode = "test" # Default mode is initialized as Test.
 
     def start_episode(self, batch_size): #batch_size is a command line argument.
         # Called at the beginning of each episode
@@ -87,36 +87,36 @@ class KnowledgeAwareAgent:
         self.reset_graph()
 
         if self.mode == 'train':
-            for k, v in self.stats["game"].items():
+            for k, v in self.stats["game"].items(): # Statistics of each episode is calculated.
                 self.stats["episode"][k].append(np.mean(v, axis=0))
-            if self.no_train_episodes % self.LOG_FREQUENCY == 0:
+            if self.no_train_episodes % self.LOG_FREQUENCY == 0: # Statistics will be reset in every 20 episodes.
                 msg = "{}. ".format(self.no_train_episodes)
                 msg += "  " + "  ".join("{}: {:5.2f}".format(k, np.mean(v,axis=0)) for k, v in self.stats["episode"].items())
                 print(msg)
                 self.stats["episode"] = defaultdict(list) # reset stat
 
-    def train(self, batch_size=1):
+    def train(self, batch_size=1): # Initializes mode, episodes and steps.
         self.mode = "train"
         self.model.train()
         self.no_train_step = 0
         self.no_train_episodes = 0
 
-    def test(self,batch_size=1):
+    def test(self,batch_size=1): # Initializes mode, resets hidden_size and evaluates model.
         self.mode = "test"
         self.model.eval()
         self.model.reset_hidden(batch_size)
 
     def reset_parameters(self, batch_size): # Called at start_episode to reset parameters.
         # Called at the beginning of each batch.
-        self.agent_loc = ['' for _ in range(batch_size)]
+        self.agent_loc = ['' for _ in range(batch_size)] # Agent location is empty for each game at the start.
         self.last_done = [False] * batch_size
         if self.mode == 'train':
             self.last_score = tuple([0.0] * batch_size)
             self.batch_stats = [{"max": defaultdict(list), "mean": defaultdict(list)} for _ in range(batch_size)]
         self.model.reset_hidden(batch_size)
-        self.reset_graph()
+        self.reset_graph() # Empties the graph 
 
-    def reset_graph(self):
+    def reset_graph(self): # Initializes/ Resets empty graph, agent location, current facts.
         self.world_graph = {}
         self.local_graph = {}
         self.rel_extractor.agent_loc = ''
@@ -127,11 +127,11 @@ class KnowledgeAwareAgent:
         return EnvInfos(description=True, inventory=True, admissible_commands=True,won=True, lost=True,location = True,
                         last_action=True,game=True,facts=True,entities=True) # Last line needed for ground truth local graph
 
-    def get_local_graph(self, obs, hint, infos, cmd, prev_facts, graph_mode, prune_nodes):
+    def get_local_graph(self, obs, hint, infos, cmd, prev_facts, graph_mode, prune_nodes): # Returns local graph, current facts, Entities.
         if graph_mode == "full":
             current_facts = process_full_facts(infos["game"], infos["facts"])
             current_triplets = serialize_facts(current_facts)  # planning graph triplets
-            local_graph, entities = construct_graph(current_triplets)
+            local_graph, entities = construct_graph(current_triplets) # Returns local graph and entities from triplets.
         else:
             if self.local_evolve_type == 'direct': # Similar to KG-DQN
                 state = "{}\n{}\n{}".format(obs, infos["description"], infos["inventory"])
@@ -148,7 +148,7 @@ class KnowledgeAwareAgent:
                 local_graph, entities = construct_graph(current_triplets)
         return local_graph, current_facts, entities
 
-    def get_world_graph(self, obs, hint, infos, graph_mode, prune_nodes):
+    def get_world_graph(self, obs, hint, infos, graph_mode, prune_nodes): # Returns World graph and entities.
         # hints could be list of goals or recipe to follow.
         # Options to choose for evolve graph: DC, CDC,  neighbours (with/ without pruning), manual
         add_edges = []
@@ -249,13 +249,13 @@ class KnowledgeAwareAgent:
 
                 self.world_graph[b] = world_graph
 
-    def _process(self, texts, vocabulary, sentinel = False):
+    def _process(self, texts, vocabulary, sentinel = False): # Gets text and vocabulary as input and returns a padded tensor.
         # texts = list(map(self.extract_entity_ids, texts))
         texts = [self.tokenizer.extract_entity_ids(word, vocabulary) for word in texts]
         max_len = max(len(l) for l in texts)
         num_items = len(texts) + 1 if sentinel else len(texts)  # Add sentinel entry here for the attention mechanism
         if "<PAD>" in vocabulary:
-            padded = np.ones((num_items, max_len)) * vocabulary["<PAD>"]
+            padded = np.ones((num_items, max_len)) * vocabulary["<PAD>"] # Values to pad.
         else:
             print('Warning: No <PAD> found in the embedding vocabulary. Using the id:0 for now.')
             padded = np.zeros((num_items, max_len))
@@ -266,12 +266,12 @@ class KnowledgeAwareAgent:
         padded_tensor = to_tensor(padded,self.device)
         return padded_tensor
 
-    def _discount_rewards(self, batch_id, last_values):
+    def _discount_rewards(self, batch_id, last_values): # Returns the rewards and advantages.
         returns, advantages = [], []
         R = last_values.data
         for t in reversed(range(len(self.transitions[batch_id]))):
             rewards, _, _, values,_ = self.transitions[batch_id][t]
-            R = torch.tensor(rewards) + self.GAMMA * R
+            R = torch.tensor(rewards) + self.GAMMA * R # Gamma is a hyperparameter set to 0.9.
             adv = R - values
             returns.append(R)
             advantages.append(adv)
