@@ -8,16 +8,16 @@ CLEANUP_GAMES_PATH = Path('./games/cleanup')
 KG_PATH = '../kg.txt'
 
 
-def extract_games_knowledge_subgraph(kg, games_path):
+def extract_games_knowledge_subgraph(kg, games_path): # Extracts subgraph of KG relevant to games
     games = load_games(games_path)
-    target_entities = {e[0] for e in extract_entities(games)}
+    target_entities = {e[0] for e in extract_entities(games)} # e[0] - entities, e[1] - entities type
     linked_entities = kg_match(any_substring_extraction, target_entities, set(kg.nodes))
     sp_subgraph = shortest_path_seed_expansion(kg, linked_entities, cutoff=5)
     ego_subgraph = ego_graph_seed_expansion(kg, linked_entities, radius=1)
     return nx.compose(ego_subgraph, sp_subgraph)
 
 
-def extract_cleanup_kg_subgraphs(kg):
+def extract_cleanup_kg_subgraphs(kg): #Extracts KG subgraph and saves subgraph as txt file in tsv format.
     for level_dir in ['easy', 'medium', 'hard']:
         for split_dir in ['train', 'test', 'valid']:
             path = CLEANUP_GAMES_PATH / level_dir / split_dir
@@ -27,7 +27,7 @@ def extract_cleanup_kg_subgraphs(kg):
             save_graph_tsv(subgraph, path / "conceptnet_subgraph.txt")
 
 
-def extract_cleanup_entities():
+def extract_cleanup_entities(): # Extracts entities from subgraph as saves it as txt file.
     for level_dir in ['easy', 'medium', 'hard']:
         for split_dir in ['train', 'test', 'valid']:
             path = CLEANUP_GAMES_PATH / level_dir / split_dir
@@ -39,7 +39,7 @@ def extract_cleanup_entities():
                 f.writelines([f'{e}\n' for e in named_entities])
 
 
-def save_command_templates():
+def save_command_templates(): # Saving command templates as txt file.
     templates = "examine {t}\n" \
                 "go east\n" \
                 "go north\n" \
