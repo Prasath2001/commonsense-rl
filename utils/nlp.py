@@ -35,7 +35,7 @@ class Tokenizer:
         text = re.sub("[^A-Za-z0-9.]+", " ", text)
         return text.strip()
 
-    def _preprocess(self, s, noun_only=False, stopword=False):
+    def _preprocess(self, s, noun_only=False, stopword=False): # Preprocess and returns the pruned string (removing stopwords etc..)
         if s is None:
             return ""
         if "$$$$$$$" in s:
@@ -60,7 +60,7 @@ class Tokenizer:
         pruned_text = " ".join(pruned_entities)
         return pruned_text
 
-    def tokenize(self, text, vocabulary, custom_extractor = None):
+    def tokenize(self, text, vocabulary, custom_extractor = None): # Returns entities from text using extractor (any_substring or max_substring extraction)
         # self.nlp_tokenizer = spacy.load('en', disable=['ner', 'parser', 'tagger'])
         if custom_extractor:
             entities = custom_extractor(text, vocabulary, ngram=self.ngram, stopwords=self.stopwords)
@@ -71,7 +71,7 @@ class Tokenizer:
             entities = [word for (word, pos) in nltk.pos_tag(entities) if is_noun(pos)]
         return entities
 
-    def tokenize2(self, text, vocabulary):
+    def tokenize2(self, text, vocabulary): # returns tokens like tv_remote etc.. with underscore joining them if found in vocabulary.
         tokens = self.clean_string(text).split()
 
         if not vocabulary:
@@ -126,25 +126,25 @@ class Tokenizer:
             text_entities.extend(self.extractor(entity, vocabulary))
         return set(text_entities)
 
-    def extract_entity(self,text, vocabulary, noun_only_tokens=None, stopwords = None):
+    def extract_entity(self,text, vocabulary, noun_only_tokens=None, stopwords = None): # Extracts entities by removing stop words and keeping only noun tokens.
         if not noun_only_tokens:
             noun_only_tokens = self.noun_only_tokens
         if not stopwords:
             stopwords = self.eng_stopwords
         text = self._preprocess(text, noun_only_tokens, stopwords)
-        return self.extractor(text, vocabulary, self.ngram, stopwords=stopwords)
+        return self.extractor(text, vocabulary, self.ngram, stopwords=stopwords) # Returns a list of entities
 
-    def extract_entity_ids(self, text, vocabulary, unk=True):
+    def extract_entity_ids(self, text, vocabulary, unk=True): # Returns ids for extracted entities.
         words = self.extract_entity(text, vocabulary)
         # words = self.tokenize(text, vocabulary)
         word_ids = []
         for word in words:
             try:
-                index = self._get_word_id(word, vocabulary, unk)
+                index = self._get_word_id(word, vocabulary, unk)# Returns word id if the word exist in vocabulary.
                 word_ids.append(index)
             except KeyError:
                     pass
-        if not word_ids:
+        if not word_ids: # If word ids is empty, return -1
             return [-1]
         return word_ids
 
