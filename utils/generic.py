@@ -225,6 +225,6 @@ def masked_ave_aggregator(x, mask):
     return ave_masked_x
 
 
-def escape_entities(entities):
+def escape_entities(entities): # This function returns entities with lowercase and stripped. Example : tv_remote.
     return {re.sub(r'\s+', '_', e.lower().strip()) for e in entities}
 
