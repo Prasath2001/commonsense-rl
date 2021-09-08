@@ -32,7 +32,7 @@ def getUniqueFileHandler(results_filename, ext='.pkl', mode='wb'):
             pass  # Go and try create file again
 
 
-def load_embeddings(emb_loc, emb_type, separator='[<>+]', limit=None):
+def load_embeddings(emb_loc, emb_type, separator='[<>+]', limit=None): # Loads embeddings and returns embedding model.
     print("Loading " + emb_type + ' embeddings ...', end="")
     if emb_type in emb_dict:
         print(' from cache.')
@@ -68,22 +68,22 @@ def load_embeddings(emb_loc, emb_type, separator='[<>+]', limit=None):
             emb_model = combine_embeddings(reversed(models))
         else:
             raise NotImplementedError
-    add_util_vectors(emb_model, 'zeros')
+    add_util_vectors(emb_model, 'zeros') # Embedding values of <UNK>/ <PAD> is set to ensure no out of vocabulary problem arising.
     emb_dict[emb_type] = emb_model
     print("  ("+str(len(emb_model.vocab)) +" words) Done.")
     return emb_model
 
 
-def add_util_vectors(embeddings, pad_type='zeros'):
+def add_util_vectors(embeddings, pad_type='zeros'): # Handles embedding values of <UNK> and <PAD>.
     if 'unk' in embeddings:
-        embeddings["<UNK>"] = embeddings["unk"].copy()
+        embeddings["<UNK>"] = embeddings["unk"].copy() # Value of unk is copied from embeddings.
     else:
-        embeddings["<UNK>"] = build_padding(pad_type, embeddings.vector_size)
+        embeddings["<UNK>"] = build_padding(pad_type, embeddings.vector_size) # if not available in embedding, return array padd with zeros.
     if not '<PAD>' in embeddings:
-        embeddings["<PAD>"] = build_padding(pad_type, embeddings.vector_size)
+        embeddings["<PAD>"] = build_padding(pad_type, embeddings.vector_size) # if <PAD> not available in embedding, return array padd with zeros.
 
 
-def build_padding(padding, size):
+def build_padding(padding, size): # Padding is done given size of padding. Returns padding values as numpy array.
     if padding == 'random':
         return np.random.rand(size)
     elif padding == 'zeros':
@@ -155,20 +155,20 @@ def load_multiple_embeddings(emb_loc, emb_types):
     return emb_models
 
 
-def to_np(x):
+def to_np(x): # Convert matrix to numpy and device to CPU to work.
     if isinstance(x, np.ndarray):
         return x
     return x.data.cpu().numpy()
 
 
-def to_tensor(np_matrix, device=torch.device("cpu"), type='long'):
+def to_tensor(np_matrix, device=torch.device("cpu"), type='long'): # Converts numpy array to tensor
     if type == 'long':
         return torch.from_numpy(np_matrix).type(torch.long).to(device)
     elif type == 'float':
         return torch.from_numpy(np_matrix).type(torch.float).to(device)
 
 
-def max_len(list_of_list):
+def max_len(list_of_list): # Returns a list with max size within list. Example : [[1,2],[1,23,3,4,4]] returns 5.
     if len(list_of_list) == 0:
         return 0
     return max(map(len, list_of_list))
