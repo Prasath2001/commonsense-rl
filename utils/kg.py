@@ -17,42 +17,42 @@ source_paths= defaultdict(dict)
 
 
 def shortest_path_subgraph(kg_graph, prev_graph, nodes, inventory_entities=None, command_entities=None, path_len=2, add_all_path=False):
-    if inventory_entities is None:
+    if inventory_entities is None: # initialize inventory entities.
         inventory_entities = []
-    if command_entities is None:
+    if command_entities is None: # initialize command entities
         command_entities = []
     # Get non-neighbor nodes: nodes without edges between them
-    world_graph = kg_graph.subgraph(list(prev_graph.nodes)+nodes).copy()
-    world_graph = nx.compose(prev_graph,world_graph)
-    world_graph.remove_edges_from(nx.selfloop_edges(world_graph))
+    world_graph = kg_graph.subgraph(list(prev_graph.nodes)+nodes).copy() # world_graph is subgraph of kg_graph + given nodes.
+    world_graph = nx.compose(prev_graph,world_graph) # Compose returns the graph with edge and vertices set performed union of given 2 graphs.
+    world_graph.remove_edges_from(nx.selfloop_edges(world_graph)) # remove self-loops.
 
     if path_len < 2:
         return world_graph
     triplets = []
     # Add command related relations
-    pruned_entities = list(set(command_entities)-set(inventory_entities))
+    pruned_entities = list(set(command_entities)-set(inventory_entities)) # pruned entities are filtered entities from commands.
     if pruned_entities:
         for src_et in inventory_entities:
             for tgt_et in pruned_entities:
                 if src_et != tgt_et:
                     try:
-                        pair_dist = nx.shortest_path_length(kg_graph, source=src_et, target=tgt_et)
+                        pair_dist = nx.shortest_path_length(kg_graph, source=src_et, target=tgt_et) # Returns the length of shortest path.
                     except nx.NetworkXNoPath:
-                        pair_dist = 0
+                        pair_dist = 0 # Zero, if there is no path between source and target.
                     if pair_dist >= 1 and pair_dist <= path_len:
-                        triplets.append([src_et, tgt_et, 'relatedTo'])
+                        triplets.append([src_et, tgt_et, 'relatedTo']) # Add the triplet, if there is path between source and target with distance >=1 and distance <=2
     else: # no items in the pruned entities, won't happen
         for entities in command_entities:
             for src_et in entities:
                 for tgt_et in entities:
                     if src_et != tgt_et:
                         try:
-                            pair_dist = nx.shortest_path_length(kg_graph, source=src_et, target=tgt_et)
+                            pair_dist = nx.shortest_path_length(kg_graph, source=src_et, target=tgt_et) # Same as above
                         except nx.NetworkXNoPath:
                             pair_dist=0
                         if pair_dist >= 1 and pair_dist <= path_len:
                             triplets.append([src_et, tgt_et, 'relatedTo'])
-    world_graph, _= add_triplets_to_graph(world_graph, triplets)
+    world_graph, _= add_triplets_to_graph(world_graph, triplets) # Adding new triplets to world graph. _ = entities, not used here.
     return world_graph
 
 
@@ -375,13 +375,13 @@ def load_manual_graphs(path):  # This function loads conceptnet manual subgraph 
 
 
 
-def kg_match(extractor, target_entities, kg_entities):
+def kg_match(extractor, target_entities, kg_entities): # Returns subset of target entities matching in entities in KG. 
     result = set()
-    kg_entities = escape_entities(kg_entities)
+    kg_entities = escape_entities(kg_entities) # escape entities return lowercase stripped entities.Example : tv_remote.
     for e in target_entities:
         e = e.lower().strip()
-        result |= extractor(e, kg_entities)
-    return result
+        result |= extractor(e, kg_entities) # Appending the extracted entities to result. Can be max_substring or any_substring extraction.
+    return result 
 
 
 def save_graph_tsv(graph, path): # Saving graph as TSV file. Each line contains u,relation,v triplet.
