@@ -313,7 +313,7 @@ def khop_neighbor_graph(graph, entities, cutoff=1, max_khop_degree=None): # Retu
 def ego_graph_seed_expansion(graph, seed, radius, undirected=True, max_degree=None):
     working_graph = graph
     if undirected:
-        working_graph = graph.to_undirected()
+        working_graph = graph.to_undirected() # use undirected version of current graph
     marked = set(seed)
     nodes = set(seed)
 
@@ -322,19 +322,19 @@ def ego_graph_seed_expansion(graph, seed, radius, undirected=True, max_degree=No
         for node in marked:
             neighbors = {n for n in working_graph[node]}
             if max_degree is None or len(neighbors) <= max_degree:
-                border |= neighbors
+                border |= neighbors # Adding the neighbors of the given set of nodes instead of the node itself.
         nodes |= border
         marked = border
 
-    return graph.subgraph(nodes)
+    return graph.subgraph(nodes) # Returns the part of the graph with only neighbor nodes of given set of nodes.
 
 
-def shortest_path_seed_expansion(graph, seed, cutoff=None, undirected=True, keep_all=True):
+def shortest_path_seed_expansion(graph, seed, cutoff=None, undirected=True, keep_all=True): 
     nodes = set(seed)
     seed = list(seed)
 
     working_graph = graph
-    if undirected:
+    if undirected: # Use undirected version of given graph to expand using shortest path
         working_graph = graph.to_undirected()
     for i in range(len(seed)):
         start = i + 1 if undirected else 0
@@ -343,7 +343,7 @@ def shortest_path_seed_expansion(graph, seed, cutoff=None, undirected=True, keep
                 if not keep_all:
                     path = nx.shortest_path(working_graph, seed[i], seed[j])
                     if cutoff is None or len(path) <= cutoff:
-                        nodes |= set(path)
+                        nodes |= set(path) # Adding new nodes from seed to the node list of given graph.
                 else:
                     paths = nx.all_shortest_paths(working_graph, seed[i], seed[j])
                     for p in paths:
@@ -351,7 +351,7 @@ def shortest_path_seed_expansion(graph, seed, cutoff=None, undirected=True, keep
                             nodes |= set(p)
             except nx.NetworkXNoPath:
                 continue
-    return graph.subgraph(nodes)
+    return graph.subgraph(nodes) # Return the part of graph with given nodes.
 
 
 def load_manual_graphs(path):  # This function loads conceptnet manual subgraph for each game and returns it as dictionary.
