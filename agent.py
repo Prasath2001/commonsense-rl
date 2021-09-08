@@ -134,18 +134,18 @@ class KnowledgeAwareAgent:
             local_graph, entities = construct_graph(current_triplets) # Returns local graph and entities from triplets.
         else:
             if self.local_evolve_type == 'direct': # Similar to KG-DQN
-                state = "{}\n{}\n{}".format(obs, infos["description"], infos["inventory"])
-                hint_str = " ".join(hint)
-                prev_action = cmd
-                if cmd == 'restart':
+                state = "{}\n{}\n{}".format(obs, infos["description"], infos["inventory"]) # Current state with observation, description and inventory.
+                hint_str = " ".join(hint) # Hint string.
+                prev_action = cmd 
+                if cmd == 'restart': # if cmd is restart, then there is no previous action.
                     prev_action = None
-                local_graph, current_facts = self.rel_extractor.fetch_triplets(state+hint_str, infos["local_graph"], prev_action=prev_action)
-                entities = self.rel_extractor.kg_vocab
+                local_graph, current_facts = self.rel_extractor.fetch_triplets(state+hint_str, infos["local_graph"], prev_action=prev_action) # Fetches triplets from the string and returns local graph & Current facts.
+                entities = self.rel_extractor.kg_vocab # New set of entities is stored from KG vocabulary.
             else: # Ground-Truth, from textworld
                 current_facts = process_step_facts(prev_facts, infos["game"], infos["facts"],
                                                     infos["last_action"], cmd)
                 current_triplets = serialize_facts(current_facts)  # planning graph triplets
-                local_graph, entities = construct_graph(current_triplets)
+                local_graph, entities = construct_graph(current_triplets) # constructs graph from textworld facts.
         return local_graph, current_facts, entities
 
     def get_world_graph(self, obs, hint, infos, graph_mode, prune_nodes): # Returns World graph and entities.
@@ -154,10 +154,10 @@ class KnowledgeAwareAgent:
         add_edges = []
         if graph_mode == "full":
             if 'goal_graph' in infos and infos['goal_graph']:
-                add_edges = [[e.replace('_', ' ') for e in edge]+["AtLocation"] for edge in infos['goal_graph'].edges]
+                add_edges = [[e.replace('_', ' ') for e in edge]+["AtLocation"] for edge in infos['goal_graph'].edges] # Changing (apple, _ ,fridge) edge to (apple,AtLocation,fridge).
 
             entities = []
-            prev_entities = infos["entities"]
+            prev_entities = infos["entities"] # entities in the environment
             for entity in prev_entities:
                 et_arr = re.split(r'[- ]+', entity)
                 entity_nodes = any_substring_extraction(entity, self.kg_graph, ngram=len(et_arr))
@@ -172,48 +172,48 @@ class KnowledgeAwareAgent:
             graph = shortest_path_subgraph(self.kg_graph, nx.DiGraph(), entities)
             world_graph, entities = add_triplets_to_graph(graph, add_edges)
         else:
-            prev_entities = list(infos["world_graph"].nodes) if infos["world_graph"] else []
-            state = "{}\n{}".format(obs, infos["description"])
-            hint_str = " ".join(hint)
-            state_entities = self.tokenizer.extract_world_graph_entities(state, self.kg_graph)
-            hint_entities = self.tokenizer.extract_world_graph_entities(hint_str, self.kg_graph)
-            inventory_entities = self.tokenizer.extract_world_graph_entities(infos["inventory"], self.kg_graph)
-            new_entities = list((state_entities | hint_entities | inventory_entities ) - set(prev_entities + self.tokenizer.ignore_list + self.pruned_concepts))
+            prev_entities = list(infos["world_graph"].nodes) if infos["world_graph"] else [] # previous entities
+            state = "{}\n{}".format(obs, infos["description"]) # Current state is observation + description
+            hint_str = " ".join(hint) # Hints to play game.
+            state_entities = self.tokenizer.extract_world_graph_entities(state, self.kg_graph) # returns state entities
+            hint_entities = self.tokenizer.extract_world_graph_entities(hint_str, self.kg_graph) # returns hint entities
+            inventory_entities = self.tokenizer.extract_world_graph_entities(infos["inventory"], self.kg_graph) # returns inventory entities
+            new_entities = list((state_entities | hint_entities | inventory_entities ) - set(prev_entities + self.tokenizer.ignore_list + self.pruned_concepts)) # Updated entities are considered.
             world_graph = infos["world_graph"]
             node_weights = {}
             if not nx.is_empty(world_graph):
-                node_weights = nx.get_node_attributes(world_graph, 'weight')
+                node_weights = nx.get_node_attributes(world_graph, 'weight') # returns weights in the world graph
                 # if 'sentinel_weight' in world_graph.graph:
                     # sentinel_weight = world_graph.graph['sentinel_weight']
-            if self.world_evolve_type == 'DC':
-                entities = prev_entities + new_entities
-                world_graph = self.kg_graph.subgraph(entities).copy()
+            if self.world_evolve_type == 'DC': # Direct connection
+                entities = prev_entities + new_entities # previous entities are considered in DC.
+                world_graph = self.kg_graph.subgraph(entities).copy() # Consider only subgraph containing entities.
             elif 'NG' in self.world_evolve_type: # Expensive option
                 if new_entities:
                     # Setting max_khop_degree to higher value results in adding high-degree nodes ==> noise
                     # cutoff =1 select paths of length 2 between every pair of nodes.
-                    new_graph = khop_neighbor_graph(self.kg_graph, new_entities, cutoff=1,max_khop_degree=100)
-                    world_graph = nx.compose(world_graph, new_graph)
+                    new_graph = khop_neighbor_graph(self.kg_graph, new_entities, cutoff=1,max_khop_degree=100) # Returns a k-hop neighborhood graph with new_entities
+                    world_graph = nx.compose(world_graph, new_graph) # Composing world and new graph helps to add neighborhood connections.
             elif self.world_evolve_type == 'manual':
                 assert ('manual_world_graph' in infos and infos['manual_world_graph'] and 'graph' in infos[
                     'manual_world_graph']), 'No valid manual world graph found. Use other options'
-                select_entities = list(set(infos['manual_world_graph']['entities']).intersection(set(new_entities)))
-                new_graph = khop_neighbor_graph(infos['manual_world_graph']['graph'], select_entities, cutoff=1)
-                world_graph = nx.compose(world_graph, new_graph)
-            else: # default options = CDC
+                select_entities = list(set(infos['manual_world_graph']['entities']).intersection(set(new_entities))) # Intersection of manual world entities and new entities.
+                new_graph = khop_neighbor_graph(infos['manual_world_graph']['graph'], select_entities, cutoff=1) # Returns a k-hop neighborhood graph with select_entities.
+                world_graph = nx.compose(world_graph, new_graph) # # Composing world and new graph helps to add neighborhood connections.
+            else: # default options = CDC (Contextual Direct Connection)
                 if new_entities or inventory_entities:
                     command_entities=[]
                     for cmd in infos['admissible_commands']:
                         if 'put' in cmd or 'insert' in cmd:
-                            entities = self.tokenizer.extract_world_graph_entities(cmd, self.kg_graph)
+                            entities = self.tokenizer.extract_world_graph_entities(cmd, self.kg_graph) # extracts entities from world graphs based on command.
                             command_entities.extend(entities)
                     world_graph = shortest_path_subgraph(self.kg_graph, world_graph, new_entities,
-                                                         inventory_entities,command_entities)
+                                                         inventory_entities,command_entities) # World graph is updated with shortest path subgraph with new entities added.
 
             # Prune Nodes
             if prune_nodes and not nx.is_empty(world_graph) and len(
                     world_graph.nodes) > 10:
-                prune_count = int(len(world_graph.nodes) / 30)
+                prune_count = int(len(world_graph.nodes) / 30) # why 30 ?
                 for _ in range(prune_count):
                     if any(node_weights):
                         rnode = min(node_weights, key=node_weights.get)
@@ -221,31 +221,31 @@ class KnowledgeAwareAgent:
                         # print('pruning ' + rnode)
                         world_graph.graph['sentinel_weight'] += node_weights[rnode]
                         if rnode in world_graph:
-                            world_graph.remove_node(rnode)
+                            world_graph.remove_node(rnode) # Removing/ Pruning nodes from world graph.
 
-            world_graph.remove_edges_from(nx.selfloop_edges(world_graph))
-            entities = list(world_graph.nodes)
-        return world_graph, entities
+            world_graph.remove_edges_from(nx.selfloop_edges(world_graph)) # Removing self-loops from world graph.
+            entities = list(world_graph.nodes) # Updated set of entities after pruning.
+        return world_graph, entities # Returns world graph and entities.
 
-    def update_current_graph(self, obs, cmd, hints, infos, graph_mode,prune_nodes=False):
+    def update_current_graph(self, obs, cmd, hints, infos, graph_mode,prune_nodes=False): # This function updates agent location, Local/World graph and Current facts.
         # hints could be list of goals or recipe to follow.
 
         batch_size = len(obs)
         info_per_batch = [{k: v[i] for k, v in infos.items()} for i in range(len(obs))]
-        for b in range(batch_size):
+        for b in range(batch_size): # Iterating each batch of games
 
             if 'local' in self.graph_type:
-                self.rel_extractor.agent_loc=self.agent_loc[b]
-                info_per_batch[b]["local_graph"] = self.local_graph[b] if b in self.local_graph else nx.DiGraph()
-                local_graph, current_facts, _ = self.get_local_graph(obs[b], hints[b],info_per_batch[b], cmd[b], self.current_facts[b],graph_mode, prune_nodes)
-                self.agent_loc[b] = self.rel_extractor.agent_loc
-                self.local_graph[b] = local_graph
-                self.current_facts[b] = current_facts
+                self.rel_extractor.agent_loc=self.agent_loc[b] # gets agent current location
+                info_per_batch[b]["local_graph"] = self.local_graph[b] if b in self.local_graph else nx.DiGraph() # Local graph is retrieved.
+                local_graph, current_facts, _ = self.get_local_graph(obs[b], hints[b],info_per_batch[b], cmd[b], self.current_facts[b],graph_mode, prune_nodes) # Gets new local graph.
+                self.agent_loc[b] = self.rel_extractor.agent_loc # Agent's location is updated.
+                self.local_graph[b] = local_graph # Local graph is updated.
+                self.current_facts[b] = current_facts # Current facts are updated.
 
             if 'world' in self.graph_type:
                 info_per_batch[b]["world_graph"] = self.world_graph[b] if b in self.world_graph else nx.DiGraph()
                 # info_per_batch[b]["goal_graph"] = infos["goal_graph"][b] if 'goal_graph' in infos else None
-                world_graph, _ = self.get_world_graph(obs[b], hints[b], info_per_batch[b], graph_mode, prune_nodes)
+                world_graph, _ = self.get_world_graph(obs[b], hints[b], info_per_batch[b], graph_mode, prune_nodes) # World graph is updated.
 
                 self.world_graph[b] = world_graph
 
@@ -258,12 +258,12 @@ class KnowledgeAwareAgent:
             padded = np.ones((num_items, max_len)) * vocabulary["<PAD>"] # Values to pad.
         else:
             print('Warning: No <PAD> found in the embedding vocabulary. Using the id:0 for now.')
-            padded = np.zeros((num_items, max_len))
+            padded = np.zeros((num_items, max_len)) # padding values are 0, if there is not id for <PAD> 
 
         for i, text in enumerate(texts):
-            padded[i, :len(text)] = text
+            padded[i, :len(text)] = text # padding the text.
 
-        padded_tensor = to_tensor(padded,self.device)
+        padded_tensor = to_tensor(padded,self.device) # converts numpy to tensors
         return padded_tensor
 
     def _discount_rewards(self, batch_id, last_values): # Returns the rewards and advantages.
