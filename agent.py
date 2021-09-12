@@ -289,7 +289,7 @@ class KnowledgeAwareAgent:
             return [infos["admissible_commands"][b][sel_rand_action_idx[b]] for b in range(batch_size)] # Returns random action for each game in the batch.
 
         torch.autograd.set_detect_anomaly(True) # Detects anomaly - Any backward computation that generate “nan” value will raise an error.
-        input_t = []
+        input_t = [] # Input Tensor will get tensors as list
         # Build agent's observation: feedback + look + inventory.
         state = ["{}\n{}\n{}\n{}".format(obs[b], infos["description"][b], infos["inventory"][b], ' \n'.join(
                         scored_commands[b])) for b in range(batch_size)]
@@ -338,44 +338,44 @@ class KnowledgeAwareAgent:
                         e1 = wentities2id[e1]
                         world_adj_matrix[b][e1][e1] = 1.0 # self - loop entry in adjacency matrix.
                     if self.sentinel_node: # Fully connected sentinel
-                        world_adj_matrix[b][-1,:] = np.ones((max_num_nodes),dtype="float32") # Adding a row and column for sentinal node.
+                        world_adj_matrix[b][-1,:] = np.ones((max_num_nodes),dtype="float32") # Adding a row and column with 1's for sentinal node.
                         world_adj_matrix[b][:,-1] = np.ones((max_num_nodes), dtype="float32")
                 worldkg_adj_tensor = to_tensor(world_adj_matrix, self.device, type="float") # numpy array converted to tensor.
 
             if 'local' in self.graph_type:
-                local_entities = []
+                local_entities = [] # All the entities in local graph will be stored.
                 for b in range(batch_size):
-                    local_entities.extend(self.local_graph[b].nodes())
-                local_entities = set(local_entities)
-                lentities2id = dict(zip(local_entities,range(len(local_entities))))
-                max_num_nodes = len(lentities2id) + 1 if self.sentinel_node else len(lentities2id)
-                localkg_tensor = self._process(lentities2id, self.word2id, sentinel = self.sentinel_node)
-                local_adj_matrix = np.zeros((batch_size, max_num_nodes, max_num_nodes), dtype="float32")
+                    local_entities.extend(self.local_graph[b].nodes()) # Storing local entities.
+                local_entities = set(local_entities) # Converting list to set.
+                lentities2id = dict(zip(local_entities,range(len(local_entities)))) # Local entities dictionary.
+                max_num_nodes = len(lentities2id) + 1 if self.sentinel_node else len(lentities2id) # Maximum number of nodes.
+                localkg_tensor = self._process(lentities2id, self.word2id, sentinel = self.sentinel_node) # Converting dictionary to tensors.
+                local_adj_matrix = np.zeros((batch_size, max_num_nodes, max_num_nodes), dtype="float32") # Adjacency matrix for each batch initialized with 0's
                 for b in range(batch_size):
                     # get adjacentry matrix for each batch based on the all_entities
                     triplets = [list(edges) for edges in self.local_graph[b].edges.data('relation')]
                     for [e1, e2, r] in triplets:
                         e1 = lentities2id[e1]
                         e2 = lentities2id[e2]
-                        local_adj_matrix[b][e1][e2] = 1.0
-                        local_adj_matrix[b][e2][e1] = 1.0
+                        local_adj_matrix[b][e1][e2] = 1.0  # Construct adjacency matrix.
+                        local_adj_matrix[b][e2][e1] = 1.0  # reverse relation - because of symmetry.
                     for e1 in list(self.local_graph[b].nodes):
                         e1 = lentities2id[e1]
-                        local_adj_matrix[b][e1][e1] = 1.0
-                    if self.sentinel_node:
-                        local_adj_matrix[b][-1,:] = np.ones((max_num_nodes),dtype="float32")
+                        local_adj_matrix[b][e1][e1] = 1.0 # self-loop entry in adjacency matrix.
+                    if self.sentinel_node: # Fully connected sentinel
+                        local_adj_matrix[b][-1,:] = np.ones((max_num_nodes),dtype="float32") # Adding a row and column with 1's for sentinal node.
                         local_adj_matrix[b][:,-1] = np.ones((max_num_nodes), dtype="float32")
-                localkg_adj_tensor = to_tensor(local_adj_matrix, self.device, type="float")
-
+                localkg_adj_tensor = to_tensor(local_adj_matrix, self.device, type="float") # numpy array converted to tensor.
+ 
             if len(scored_commands) > 0:
                 # Get the scored commands as one string
                 hint_str = [' \n'.join(
-                        scored_commands[b][-self.hist_scmds_size:]) for b in range(batch_size)]
+                        scored_commands[b][-self.hist_scmds_size:]) for b in range(batch_size)] # hist_scmds_size - Number of recent scored command history to use. Useful when the game has intermediate reward. Default = 3.
             else:
-                hint_str = [obs[b] + ' \n' + infos["inventory"][b] for b in range(batch_size)]
-            localkg_hint_tensor = self._process(hint_str, self.word2id)
-            worldkg_hint_tensor = self._process(hint_str, self.node2id)
-
+                hint_str = [obs[b] + ' \n' + infos["inventory"][b] for b in range(batch_size)] # Hint is obs + inventory, if there are no scored commands earlier (used before any scoring started.)
+            localkg_hint_tensor = self._process(hint_str, self.word2id) # Storing hint as tensor. word2id - vocabulary
+            worldkg_hint_tensor = self._process(hint_str, self.node2id) # Storing hint as tensor. node2id - vocabulary
+        # Append all tensors to input tensor.
         input_t.append(state_tensor)
         input_t.append(commands_tensor)
         input_t.append(localkg_tensor)
@@ -385,93 +385,93 @@ class KnowledgeAwareAgent:
         input_t.append(worldkg_hint_tensor)
         input_t.append(worldkg_adj_tensor)
 
-        outputs, indexes, values = self.model(*input_t)
-        outputs, indexes, values = outputs, indexes.view(batch_size), values.view(batch_size)
-        sel_action_idx = [indexes[b] for b in range(batch_size)]
-        action = [infos["admissible_commands"][b][sel_action_idx[b]] for b in range(batch_size)]
+        outputs, indexes, values = self.model(*input_t) # Model is a object, calls forward function in CommandScorerwithKG in scorer.py.
+        outputs, indexes, values = outputs, indexes.view(batch_size), values.view(batch_size) # Gets output action, index of action and Q-values.
+        sel_action_idx = [indexes[b] for b in range(batch_size)] # Selecting action index.
+        action = [infos["admissible_commands"][b][sel_action_idx[b]] for b in range(batch_size)] # Getting the action from index.
 
-        if any(done):
+        if any(done): # if any game is done,
             for b in range(batch_size):
                 if done[b]:
-                    self.model.reset_hidden_per_batch(b)
-                    action[b] = 'look'
+                    self.model.reset_hidden_per_batch(b) # reset hidden state to zeros for the batch.
+                    action[b] = 'look' # Change action to look which doesnt change score.
 
-        if self.mode == "test":
-            self.last_done = done
+        if self.mode == "test": # In test mode, return the action performed
+            self.last_done = done # Update last done.
             return action
-
-        self.no_train_step += 1
-        last_score = list(self.last_score)
-        for b, score_b in enumerate(score):
+           # In Training,
+        self.no_train_step += 1 # Increment training step
+        last_score = list(self.last_score) # Get last score as list.
+        for b, score_b in enumerate(score): # batch id and score of that batch is iterating
             # Update local/world graph attention weights
-            if 'world' in self.graph_type:
+            if 'world' in self.graph_type: 
                 with torch.no_grad():
-                    att_wts = self.model.world_attention[b].flatten().cpu().numpy()
-                edge_attr = dict(zip(wentities2id.keys(),att_wts))
-                nx.set_node_attributes(self.world_graph[b], edge_attr, 'weight')
-                self.world_graph[b].graph["sentinel_weight"] = att_wts[-1]
+                    att_wts = self.model.world_attention[b].flatten().cpu().numpy() # Attention weights
+                edge_attr = dict(zip(wentities2id.keys(),att_wts)) # edge attribute will store id and it's attention weight.
+                nx.set_node_attributes(self.world_graph[b], edge_attr, 'weight') # Each node gets edge attribute as attention weight.
+                self.world_graph[b].graph["sentinel_weight"] = att_wts[-1] # Sentinal node has seperate attention weight.
             if 'local' in self.graph_type:
                 with torch.no_grad():
-                    att_wts = self.model.local_attention[b].flatten().cpu().numpy()
+                    att_wts = self.model.local_attention[b].flatten().cpu().numpy() # Same as world graph type above.
                 edge_attr = dict(zip(lentities2id.keys(),att_wts))
                 nx.set_node_attributes(self.local_graph[b], edge_attr, 'weight')
                 self.local_graph[b].graph["sentinel_weight"] = att_wts[-1]
-            if self.transitions[b]:
-                reward = (score_b - last_score[b])
-                reward = reward + 100 if infos["won"][b] else reward
-                reward = reward - 100 if infos["lost"][b] else reward
+            if self.transitions[b]: # If there is a transition exist then calculate new reward information to store.
+                reward = (score_b - last_score[b]) # Reward is difference between scores.
+                reward = reward + 100 if infos["won"][b] else reward # Increase reward if won
+                reward = reward - 100 if infos["lost"][b] else reward # else decrease reward.
                 self.transitions[b][-1][0] = reward  # Update reward information.
-                last_score[b] = score_b
-            if self.no_train_step % self.UPDATE_FREQUENCY == 0 or just_finished[b]:
+                last_score[b] = score_b # Update last score to current score.
+            if self.no_train_step % self.UPDATE_FREQUENCY == 0 or just_finished[b]: # Update model for every UPDATE FREQ = 20 episodes
                 # Update model
-                returns, advantages = self._discount_rewards(b, values[b])
-                batch_loss = 0
+                returns, advantages = self._discount_rewards(b, values[b]) # Calculate returns and advantages.
+                batch_loss = 0 # Set batch loss to 0.
                 for transition, ret, advantage in zip(self.transitions[b], returns, advantages):
-                    reward, indexes_, outputs_, values_, done_ = transition
-                    if done_:
+                    reward, indexes_, outputs_, values_, done_ = transition # transition contains reward, indexes, outputs, values, done in transition for each batch.
+                    if done_: # If a game is done, move to another game.
                         continue
                     advantage = advantage.detach()  # Block gradients flow here.
                     probs = F.softmax(outputs_, dim=-1)
                     log_probs = torch.log(probs)
                     log_action_probs = log_probs[indexes_]
                     # log_action_probs = log_probs.gather(1, indexes_.view(batch_size, 1))
-                    policy_loss = -log_action_probs * advantage
-                    value_loss = (.5 * (values_ - ret) ** 2.)
-                    entropy = (-probs * log_probs).sum()
-                    batch_loss += policy_loss + 0.5 * value_loss - 0.0001 * entropy
+                    policy_loss = -log_action_probs * advantage # Actor loss
+                    value_loss = (.5 * (values_ - ret) ** 2.) # Critic loss
+                    entropy = (-probs * log_probs).sum() # Entropy formula = Sum(-p.log(p))
+                    batch_loss += policy_loss + 0.5 * value_loss - 0.0001 * entropy # Advantage Actor-Critic algorithm
 
-                    self.batch_stats[b]["mean"]["reward"].append(reward)
-                    self.batch_stats[b]["mean"]["policy"].append(policy_loss.item())
-                    self.batch_stats[b]["mean"]["value"].append(value_loss.item())
-                    self.batch_stats[b]["mean"]["entropy"].append(entropy.item())
-                    self.batch_stats[b]["mean"]["confidence"].append(torch.exp(log_action_probs).item())
+                    self.batch_stats[b]["mean"]["reward"].append(reward) # Stores mean reward for each batch.
+                    self.batch_stats[b]["mean"]["policy"].append(policy_loss.item()) # Stores mean policy/actor loss value for each batch.
+                    self.batch_stats[b]["mean"]["value"].append(value_loss.item()) # Stores mean value/critic loss for each batch.
+                    self.batch_stats[b]["mean"]["entropy"].append(entropy.item()) # Stores mean entropy for each batch. 
+                    self.batch_stats[b]["mean"]["confidence"].append(torch.exp(log_action_probs).item()) # Stores mean confidence for each batch.
 
                 if batch_loss != 0:
-                    batch_loss.backward(retain_graph=True)
+                    batch_loss.backward(retain_graph=True) # Backpropagation.
                     nn.utils.clip_grad_norm_(self.model.parameters(), 40)
-                    self.optimizer.step()
-                    self.optimizer.zero_grad()
-                    self.batch_stats[b]["mean"]["loss"].append(batch_loss.item())
-                self.transitions[b] = []
+                    self.optimizer.step() # Performs a single optimization step. Re-evaluates the model and returns the loss.
+                    self.optimizer.zero_grad() # Sets the gradients of all optimized tensors to 0. Resets only every 20 episodes.
+                    self.batch_stats[b]["mean"]["loss"].append(batch_loss.item()) # Store mean loss for each batch.
+                self.transitions[b] = [] # Initialize empty transitions.
             else:
                 # Keep information about transitions for Truncated Backpropagation Through Time.
                 # Reward will be set on the next call
-                self.transitions[b].append([None, indexes[b], outputs[b], values[b], done[b]])
-            self.batch_stats[b]["max"]["score"].append(score_b/infos["game"][b].max_score)
+                self.transitions[b].append([None, indexes[b], outputs[b], values[b], done[b]]) # Append to transitions
+            self.batch_stats[b]["max"]["score"].append(score_b/infos["game"][b].max_score) # Stores maximum scores for each batch.
 
-        self.last_score = tuple(last_score)
-        self.last_done = done
+        self.last_score = tuple(last_score) # Store last score
+        self.last_done = done # Last done - T/F
         if all(done): # Used at the end of the batch to update epsiode stats
-            for b in range(batch_size):
+            for b in range(batch_size): # To append all stats and calculate game stats.
                 for k, v in self.batch_stats[b]["mean"].items():
-                    self.stats["game"][k].append(np.mean(v, axis=0))
+                    self.stats["game"][k].append(np.mean(v, axis=0))# Mean of all batches.
                 for k, v in self.batch_stats[b]["max"].items():
-                    self.stats["game"][k].append(np.max(v, axis=0))
+                    self.stats["game"][k].append(np.max(v, axis=0)) # Returns mean of max scores
 
         if self.epsilon > 0.0:
             rand_num = torch.rand((1,),device=self.device) #np.random.uniform(low=0.0, high=1.0, size=(1,))
             less_than_epsilon = (rand_num < self.epsilon).long() # batch
             greater_than_epsilon = 1 - less_than_epsilon
             choosen_idx = less_than_epsilon * sel_rand_action_idx + greater_than_epsilon * sel_action_idx
-            action = infos["admissible_commands"][choosen_idx]
-        return action
+            action = infos["admissible_commands"][choosen_idx] # Sampling action.
+        return action # Returns the action.
