@@ -278,15 +278,15 @@ class KnowledgeAwareAgent:
 
         return returns[::-1], advantages[::-1]
 
-    def act(self, obs: str, score: int, done: bool, infos: Mapping[str, Any], scored_commands: list, random_action =False):
-        batch_size = len(obs)
-        if not self._episode_has_started:
+    def act(self, obs: str, score: int, done: bool, infos: Mapping[str, Any], scored_commands: list, random_action =False): # Returns best action to be taken from admissible commands.
+        batch_size = len(obs) 
+        if not self._episode_has_started: # start episode
             self.start_episode(batch_size)
 
-        just_finished = [done[b] != self.last_done[b] for b in range(batch_size)]
-        sel_rand_action_idx = [np.random.choice(len(infos["admissible_commands"][b])) for b in range(batch_size)]
-        if random_action:
-            return [infos["admissible_commands"][b][sel_rand_action_idx[b]] for b in range(batch_size)]
+        just_finished = [done[b] != self.last_done[b] for b in range(batch_size)] # for each batch, true/false is stored. [ T,T,F,F..] - len of batch size.
+        sel_rand_action_idx = [np.random.choice(len(infos["admissible_commands"][b])) for b in range(batch_size)] # choose a random index (stored as list) from list of admissible commands for each batch.
+        if random_action: # Perform random action.
+            return [infos["admissible_commands"][b][sel_rand_action_idx[b]] for b in range(batch_size)] # Returns random action for each game in the batch.
 
         torch.autograd.set_detect_anomaly(True)
         input_t = []
