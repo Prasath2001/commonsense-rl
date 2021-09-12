@@ -288,59 +288,59 @@ class KnowledgeAwareAgent:
         if random_action: # Perform random action.
             return [infos["admissible_commands"][b][sel_rand_action_idx[b]] for b in range(batch_size)] # Returns random action for each game in the batch.
 
-        torch.autograd.set_detect_anomaly(True)
+        torch.autograd.set_detect_anomaly(True) # Detects anomaly - Any backward computation that generate “nan” value will raise an error.
         input_t = []
         # Build agent's observation: feedback + look + inventory.
         state = ["{}\n{}\n{}\n{}".format(obs[b], infos["description"][b], infos["inventory"][b], ' \n'.join(
                         scored_commands[b])) for b in range(batch_size)]
         # Tokenize and pad the input and the commands to chose from.
-        state_tensor = self._process(state, self.word2id)
+        state_tensor = self._process(state, self.word2id) # Converts state to tensor (padded).
 
-        command_list = []
+        command_list = []  # List of commands
+        for b in range(batch_size): 
+            cmd_b = self._process(infos["admissible_commands"][b],self.word2id) # admissible commands are converted to tensors, word2id is the vocabulary.
+            command_list.append(cmd_b) # Storing list of commands.
+        max_num_candidate = max_len(infos["admissible_commands"]) # Maximum number of possible commands.
+        max_num_word = max([cmd.size(1) for cmd in command_list]) # Maximum number of words.
+        commands_tensor = to_tensor(np.zeros((batch_size, max_num_candidate, max_num_word)), self.device) # Commands tensor of dim : batch_size x Possible_commands x Max_num_words
         for b in range(batch_size):
-            cmd_b = self._process(infos["admissible_commands"][b],self.word2id)
-            command_list.append(cmd_b)
-        max_num_candidate = max_len(infos["admissible_commands"])
-        max_num_word = max([cmd.size(1) for cmd in command_list])
-        commands_tensor = to_tensor(np.zeros((batch_size, max_num_candidate, max_num_word)), self.device)
-        for b in range(batch_size):
-            commands_tensor[b,:command_list[b].size(0), :command_list[b].size(1)] = command_list[b]
-
+            commands_tensor[b,:command_list[b].size(0), :command_list[b].size(1)] = command_list[b] # Commands list is converted to commands tensor.
+        # We have state tensor and command tensor.
         localkg_tensor = torch.FloatTensor()
-        localkg_adj_tensor = torch.FloatTensor()
+        localkg_adj_tensor = torch.FloatTensor() # Adjacency matrix
         worldkg_tensor = torch.FloatTensor()
-        worldkg_adj_tensor = torch.FloatTensor()
-        localkg_hint_tensor = torch.FloatTensor()
-        worldkg_hint_tensor = torch.FloatTensor()
+        worldkg_adj_tensor = torch.FloatTensor() # Adjacency matrix
+        localkg_hint_tensor = torch.FloatTensor() # Hints stored as tensor
+        worldkg_hint_tensor = torch.FloatTensor() 
         if self.graph_emb_type is not None and ('local' in self.graph_type or 'world' in self.graph_type):
 
             # prepare Local graph and world graph ....
             # Extra empty node (sentinel node) for no attention option
             #  (Xiong et al ICLR 2017 and https://arxiv.org/pdf/1612.01887.pdf)
             if 'world' in self.graph_type:
-                world_entities = []
+                world_entities = [] # All the entities in world graph will be stored.
                 for b in range(batch_size):
-                    world_entities.extend(self.world_graph[b].nodes())
-                world_entities = set(world_entities)
-                wentities2id = dict(zip(world_entities,range(len(world_entities))))
-                max_num_nodes = len(wentities2id) + 1 if self.sentinel_node else len(wentities2id)
-                worldkg_tensor = self._process(wentities2id, self.node2id, sentinel = self.sentinel_node)
-                world_adj_matrix = np.zeros((batch_size, max_num_nodes, max_num_nodes), dtype="float32")
+                    world_entities.extend(self.world_graph[b].nodes()) # Storing world entities.
+                world_entities = set(world_entities) # Converting list to set.
+                wentities2id = dict(zip(world_entities,range(len(world_entities)))) # World entities dictionary.
+                max_num_nodes = len(wentities2id) + 1 if self.sentinel_node else len(wentities2id) # Maximum number of nodes.
+                worldkg_tensor = self._process(wentities2id, self.node2id, sentinel = self.sentinel_node) # Converting dictionary to tensors.
+                world_adj_matrix = np.zeros((batch_size, max_num_nodes, max_num_nodes), dtype="float32") # Adjacency matrix for each batch initialized with 0's.
                 for b in range(batch_size):
                     # get adjacentry matrix for each batch based on the all_entities
                     triplets = [list(edges) for edges in self.world_graph[b].edges.data('relation')]
                     for [e1, e2, r] in triplets:
                         e1 = wentities2id[e1]
                         e2 = wentities2id[e2]
-                        world_adj_matrix[b][e1][e2] = 1.0
-                        world_adj_matrix[b][e2][e1] = 1.0 # reverse relation
+                        world_adj_matrix[b][e1][e2] = 1.0 # Construct adjacency matrix.
+                        world_adj_matrix[b][e2][e1] = 1.0 # reverse relation - because of symmetry.
                     for e1 in list(self.world_graph[b].nodes):
                         e1 = wentities2id[e1]
-                        world_adj_matrix[b][e1][e1] = 1.0
+                        world_adj_matrix[b][e1][e1] = 1.0 # self - loop entry in adjacency matrix.
                     if self.sentinel_node: # Fully connected sentinel
-                        world_adj_matrix[b][-1,:] = np.ones((max_num_nodes),dtype="float32")
+                        world_adj_matrix[b][-1,:] = np.ones((max_num_nodes),dtype="float32") # Adding a row and column for sentinal node.
                         world_adj_matrix[b][:,-1] = np.ones((max_num_nodes), dtype="float32")
-                worldkg_adj_tensor = to_tensor(world_adj_matrix, self.device, type="float")
+                worldkg_adj_tensor = to_tensor(world_adj_matrix, self.device, type="float") # numpy array converted to tensor.
 
             if 'local' in self.graph_type:
                 local_entities = []
